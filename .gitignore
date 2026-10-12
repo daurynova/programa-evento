@@ -1,0 +1,4 @@
+# Solo index.html va al sitio público; lo demás (enlaces de Drive, PDF, generadores) queda local
+*
+!index.html
+!.gitignore
