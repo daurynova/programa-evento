@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#131A2B">
+<title>Programa en vivo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@500;600&family=Instrument+Sans:wght@400..700&display=swap">
+<style>
+/* Hoja de cues de escenario: Terminó / AHORA / Próximo apilados; la tarjeta "Ahora" va invertida respecto a la página */
+:root{
+  --bg:#EEF0F4; --surface:#FFFFFF; --ink:#131A2B; --muted:#5B6478; --line:#D7DCE5;
+  --accent:#2F5BD3; --accent-ink:#FFFFFF; --live:#D7332B; --ok:#1F8A5B; --warn:#B5701A;
+  --now-bg:#131A2B; --now-fg:#F4F6FA; --now-muted:#A9B2C6; --now-line:#2A3450; --now-chip:#222C45;
+  --mine:#FFF4D6; --mine-ink:#5A3F00;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --r:14px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C1018; --surface:#161C29; --ink:#E8ECF4; --muted:#8D97AB; --line:#263045;
+  --accent:#7C9BFF; --accent-ink:#0C1018; --live:#FF5A4E; --ok:#4CC38A; --warn:#E3A54A;
+  --now-bg:#EEF1F7; --now-fg:#0E1424; --now-muted:#4D5770; --now-line:#C9D0DD; --now-chip:#DCE2EC;
+  --mine:#3A2F12; --mine-ink:#FFE3A1;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0C1018; --surface:#161C29; --ink:#E8ECF4; --muted:#8D97AB; --line:#263045;
+  --accent:#7C9BFF; --accent-ink:#0C1018; --live:#FF5A4E; --ok:#4CC38A; --warn:#E3A54A;
+  --now-bg:#EEF1F7; --now-fg:#0E1424; --now-muted:#4D5770; --now-line:#C9D0DD; --now-chip:#DCE2EC;
+  --mine:#3A2F12; --mine-ink:#FFE3A1;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 var(--f-body);-webkit-font-smoothing:antialiased;
+  padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+button,input,select,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+.wrap{max-width:720px;margin:0 auto;padding-inline:16px}
+
+/* Encabezado */
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);
+  padding-top:env(safe-area-inset-top,0px)}
+.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-block:12px}
+.brand{flex:1 1 220px;min-width:0}
+.brand h1{margin:0;font:700 1.15rem/1.15 var(--f-display);font-stretch:85%;letter-spacing:.01em;text-wrap:balance}
+.brand .sub{font:500 .78rem/1.3 var(--f-mono);color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.who{display:flex;flex-direction:column;gap:3px;flex:1 1 200px;max-width:280px}
+.who label{font:600 .68rem/1 var(--f-body);text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+select,input[type=text],input[type=time],input[type=date],input[type=password],textarea{
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:44px}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 18px) 55%,calc(100% - 13px) 55%;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
+
+/* Barra de pestañas inferior */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs .wrap{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding-block:8px}
+nav.tabs a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px;border-radius:12px;
+  text-decoration:none;color:var(--muted);font:600 .78rem/1 var(--f-body)}
+nav.tabs a svg{width:22px;height:22px}
+nav.tabs a[aria-current="page"]{color:var(--ink);background:var(--bg)}
+
+main{padding-block:18px 24px}
+.view{display:flex;flex-direction:column;gap:12px}
+
+/* Estado de conexión */
+.estado{display:flex;align-items:center;gap:8px;font:500 .74rem/1 var(--f-mono);color:var(--muted)}
+.estado .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.estado.ok .dot{background:var(--ok)}
+.estado.err .dot{background:var(--live)}
+
+/* Tarjetas de cue */
+.cue{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;
+  display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:baseline}
+.cue .tag{grid-column:1/-1;font:700 .68rem/1 var(--f-body);text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.cue .t{font:600 .95rem/1.2 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+.cue .ttl{font:650 1.05rem/1.25 var(--f-display);font-stretch:90%;min-width:0;overflow-wrap:anywhere}
+.cue .meta{grid-column:2;font-size:.85rem;color:var(--muted);min-width:0}
+.cue .mine{grid-column:1/-1;margin-top:8px;padding:9px 11px;border-radius:10px;background:var(--mine);color:var(--mine-ink);font-size:.9rem}
+.cue .mine b{font-weight:700}
+.cue.done{opacity:.78}
+.cue.done .ttl{text-decoration:line-through;text-decoration-thickness:1px;text-decoration-color:var(--muted)}
+.cue.empty .ttl{color:var(--muted);font-weight:500}
+
+.now{background:var(--now-bg);color:var(--now-fg);border-radius:20px;padding:20px 18px 18px;display:flex;flex-direction:column;gap:12px;
+  box-shadow:0 10px 30px -18px rgba(10,15,30,.55)}
+.now .row1{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.onair{display:inline-flex;align-items:center;gap:8px;font:800 .78rem/1 var(--f-display);font-stretch:110%;letter-spacing:.16em;text-transform:uppercase}
+.onair i{width:11px;height:11px;border-radius:50%;background:var(--live);box-shadow:0 0 0 0 var(--live);animation:pulse 1.8s infinite}
+.onair.idle i{background:var(--now-muted);animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--live) 60%,transparent)}70%{box-shadow:0 0 0 10px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.onair i{animation:none}}
+.now .mode{font:500 .72rem/1 var(--f-mono);color:var(--now-muted)}
+.now h2{margin:0;font:800 clamp(1.9rem,8.5vw,3.1rem)/1.02 var(--f-display);font-stretch:78%;letter-spacing:-.005em;text-wrap:balance;overflow-wrap:anywhere}
+.now .when{font:600 .95rem/1.3 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--now-muted);display:flex;flex-wrap:wrap;gap:4px 14px}
+.now .desc{font-size:1rem;color:var(--now-fg);opacity:.9;margin:0}
+.bar{height:6px;border-radius:6px;background:var(--now-line);overflow:hidden}
+.bar span{display:block;height:100%;background:var(--live);border-radius:6px;transition:width .6s}
+.left{font:600 .82rem/1 var(--f-mono);color:var(--now-muted);display:flex;justify-content:space-between;gap:10px}
+.left .over{color:var(--live)}
+.task{border-top:1px solid var(--now-line);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.task .lbl{font:700 .68rem/1 var(--f-body);text-transform:uppercase;letter-spacing:.12em;color:var(--now-muted)}
+.task .txt{font-size:1rem;line-height:1.35}
+.task .txt.strong{font-weight:650}
+.task .nxt{font-size:.88rem;color:var(--now-muted);background:var(--now-chip);padding:8px 10px;border-radius:10px}
+.task .nxt b{color:var(--now-fg);font-weight:650}
+
+/* Botón de coordinación en la pantalla principal */
+.coord{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px}
+.coord .lbl{font:700 .68rem/1 var(--f-body);text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.btn.concluyo{background:var(--ok);border-color:var(--ok);color:#fff;font:750 1.1rem/1.1 var(--f-display);font-stretch:95%;min-height:58px;width:100%}
+.coord .pin{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.coord .undo{background:none;border:0;color:var(--accent);font-weight:600;cursor:pointer;padding:6px 0;align-self:flex-start}
+
+/* Programa completo */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.toolbar h2{margin:0;font:750 1.35rem/1.1 var(--f-display);font-stretch:85%}
+.switch{display:inline-flex;align-items:center;gap:8px;font-size:.9rem;color:var(--muted);cursor:pointer;user-select:none}
+.switch input{width:18px;height:18px;accent-color:var(--accent)}
+ol.prog{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+ol.prog li{display:grid;grid-template-columns:5.6rem 1fr;gap:4px 12px;padding:13px 14px;border-top:1px solid var(--line);position:relative}
+ol.prog li:first-child{border-top:0}
+ol.prog .t{font:600 .88rem/1.35 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--muted)}
+ol.prog .t small{display:block;font-size:.76rem;font-weight:500}
+ol.prog .body{min-width:0;display:flex;flex-direction:column;gap:4px}
+ol.prog .ttl{font:650 1.02rem/1.25 var(--f-display);font-stretch:90%;overflow-wrap:anywhere}
+ol.prog .meta{font-size:.86rem;color:var(--muted)}
+ol.prog .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.chip{font-size:.8rem;line-height:1.25;padding:5px 9px;border-radius:8px;background:var(--bg);border:1px solid var(--line);max-width:100%;overflow-wrap:anywhere}
+.chip b{font-weight:650}
+.chip.me{background:var(--mine);color:var(--mine-ink);border-color:transparent}
+ol.prog li.past{opacity:.55}
+ol.prog li.cur{background:color-mix(in srgb,var(--live) 7%,var(--surface))}
+ol.prog li.cur::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--live)}
+.livepill{display:inline-flex;align-items:center;gap:5px;font:800 .62rem/1 var(--f-display);letter-spacing:.14em;color:var(--live);text-transform:uppercase;margin-left:6px;vertical-align:middle}
+.livepill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--live)}
+.vacio{padding:26px 18px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:var(--r)}
+
+/* Editor */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.panel h3{margin:0;font:750 1.05rem/1.2 var(--f-display);font-stretch:88%}
+.panel p.help{margin:0;color:var(--muted);font-size:.88rem}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field>span{font:600 .72rem/1 var(--f-body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);
+  border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer;min-height:44px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--live);border-color:color-mix(in srgb,var(--live) 45%,var(--line))}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.big{font:750 1.05rem/1 var(--f-display);font-stretch:95%;min-height:56px;flex:1}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-grid;grid-template-columns:1fr 1fr;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;border-radius:9px;padding:9px 14px;font-weight:600;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.ctlnow{font:700 1.1rem/1.25 var(--f-display);font-stretch:90%}
+.ctlnow small{display:block;font:500 .78rem/1.3 var(--f-mono);color:var(--muted);margin-bottom:3px}
+
+.people{display:flex;flex-direction:column;gap:8px}
+.person{display:grid;grid-template-columns:1fr auto;gap:8px}
+.item{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+.item .head{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tasks{display:flex;flex-direction:column;gap:8px}
+.taskrow{display:grid;grid-template-columns:minmax(0,9rem) minmax(0,1fr) auto;gap:6px;align-items:start}
+@media (max-width:460px){.taskrow{grid-template-columns:minmax(0,1fr) auto}.taskrow textarea{grid-column:1/-1;grid-row:2}}
+.iconbtn{border:1px solid var(--line);background:var(--surface);border-radius:10px;width:44px;height:44px;display:inline-grid;place-items:center;cursor:pointer;color:var(--muted)}
+.iconbtn svg{width:18px;height:18px}
+.confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.9rem;color:var(--live)}
+
+.savebar{position:sticky;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:4;background:var(--surface);border:1px solid var(--line);
+  border-radius:14px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+  box-shadow:0 8px 24px -14px rgba(10,15,30,.5)}
+.savebar .msg{font-size:.88rem;color:var(--muted);min-width:0}
+.savebar .msg.dirty{color:var(--warn);font-weight:600}
+.notice{padding:11px 13px;border-radius:12px;background:var(--mine);color:var(--mine-ink);font-size:.9rem;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.err{color:var(--live);font-size:.9rem;min-height:1.2em}
+.lock{max-width:380px;margin:30px auto 0;text-align:center;align-items:stretch}
+.lock svg{width:34px;height:34px;margin:0 auto;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <h1 id="evNombre">Programa</h1>
+      <div class="sub" id="evSub">Cargando…</div>
+    </div>
+    <div class="who">
+      <label for="persona">¿Quién eres?</label>
+      <select id="persona"><option value="">Público general</option></select>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- 1 · AHORA -->
+  <section class="view" id="v-ahora" aria-label="Ahora">
+    <article class="cue done" id="cueTermino"></article>
+    <article class="now" id="cueAhora" aria-live="polite"></article>
+    <div class="coord" id="ctlAhora" hidden></div>
+    <article class="cue" id="cueProximo"></article>
+    <div class="estado" id="estado"><span class="dot"></span><span id="estadoTxt">Conectando…</span></div>
+  </section>
+
+  <!-- 2 · PROGRAMA -->
+  <section class="view" id="v-programa" aria-label="Programa completo" hidden>
+    <div class="toolbar">
+      <h2>Programa completo</h2>
+      <label class="switch" id="soloMioWrap" hidden><input type="checkbox" id="soloMio"> Solo donde participo</label>
+    </div>
+    <ol class="prog" id="listaPrograma"></ol>
+  </section>
+
+  <!-- 3 · EDITAR -->
+  <section class="view" id="v-editar" aria-label="Editar programa" hidden>
+    <form class="panel lock" id="formClave" autocomplete="off">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>
+      <h3>Solo coordinación</h3>
+      <p class="help">Escribe la contraseña para cambiar el programa. Lo que guardes aquí lo ven todos al momento.</p>
+      <input type="password" id="clave" placeholder="Contraseña" aria-label="Contraseña" autocomplete="current-password">
+      <button class="btn primary" type="submit" id="btnEntrar">Entrar</button>
+      <div class="err" id="errClave"></div>
+    </form>
+    <div id="editor" hidden></div>
+  </section>
+</main>
+
+<nav class="tabs" aria-label="Pantallas">
+  <div class="wrap">
+    <a href="#ahora" data-tab="ahora"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="currentColor"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4"/></svg>Ahora</a>
+    <a href="#programa" data-tab="programa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/></svg>Programa</a>
+    <a href="#editar" data-tab="editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>Editar</a>
+  </div>
+</nav>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+"use strict";
+const SB_URL = "https://nttjbbguvdawcsqmrmvs.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50dGpiYmd1dmRhd2NzcW1ybXZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NzY4NTgsImV4cCI6MjEwNDU1Mjg1OH0.ckx7hr8YT4iPymymehsj30ACrceB5jGUT-czPW-Zkns";
+const sb = supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
+
+/* ---------- utilidades ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch {} },
+  sget(k){ try { return sessionStorage.getItem(k); } catch { return null; } },
+  sset(k,v){ try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k,v); } catch {} },
+  del(k){ try { localStorage.removeItem(k); } catch {} }
+};
+const uid = () => Math.random().toString(36).slice(2, 9);
+const toMin = hhmm => { if (!hhmm) return null; const [h,m] = hhmm.split(":").map(Number); return h*60 + (m||0); };
+function fmtHora(hhmm){
+  const m = toMin(hhmm); if (m == null) return "—";
+  let h = Math.floor(m/60) % 24, mm = m % 60, ap = h < 12 ? "a. m." : "p. m.";
+  h = h % 12 || 12; return `${h}:${String(mm).padStart(2,"0")} ${ap}`;
+}
+function fmtDur(min){
+  min = Math.max(0, Math.round(min));
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min/60), m = min % 60; return m ? `${h} h ${m} min` : `${h} h`;
+}
+function fmtFecha(iso){
+  if (!iso) return "";
+  const d = new Date(iso + "T12:00:00");
+  return d.toLocaleDateString("es-DO", { weekday:"long", day:"numeric", month:"long" });
+}
+/* Hora actual en la zona horaria del evento */
+function relojEvento(tz){
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: tz || "America/Santo_Domingo",
+    year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit", hourCycle:"h23" })
+    .formatToParts(new Date()).map(x => [x.type, x.value]));
+  return { fecha: `${p.year}-${p.month}-${p.day}`, min: (+p.hour)*60 + (+p.minute) + (+p.second)/60, hhmm: `${p.hour}:${p.minute}` };
+}
+
+/* ---------- estado ---------- */
+let DATA = null;          // documento publicado
+let ACTUALIZADO = null;
+let draft = null;         // copia en edición
+let dirty = false;
+let remotoPendiente = false;
+let clave = store.get("evento_clave");
+
+const COORD_DEF = ["Daury Nova", "Gabriela Dajer", "Iliana Rosario"];
+const vacio = () => ({ evento:{ nombre:"Programa del evento", fecha:"", zona:"America/Santo_Domingo" }, personas:[...COORD_DEF], coordinadores:[...COORD_DEF], items:[], control:{ modo:"auto", actual:null } });
+function normalizar(d){
+  const v = vacio(); d = d && typeof d === "object" ? d : {};
+  return { evento:{ ...v.evento, ...(d.evento||{}) }, personas: Array.isArray(d.personas) ? d.personas : [],
+    coordinadores: Array.isArray(d.coordinadores) ? d.coordinadores : [...COORD_DEF],
+    items: Array.isArray(d.items) ? d.items.map(i => ({ id:i.id||uid(), inicio:i.inicio||"", fin:i.fin||"", titulo:i.titulo||"", lugar:i.lugar||"", detalle:i.detalle||"", tareas:i.tareas||{} })) : [],
+    control:{ ...v.control, ...(d.control||{}) } };
+}
+const ordenados = d => [...d.items].filter(i => i.inicio).sort((a,b) => toMin(a.inicio) - toMin(b.inicio));
+function finDe(items, i){
+  const it = items[i];
+  if (it.fin) return toMin(it.fin);
+  if (items[i+1]) return toMin(items[i+1].inicio);
+  return toMin(it.inicio) + 30;
+}
+
+/* Calcula Terminó / Ahora / Próximo */
+function calcular(d){
+  const items = ordenados(d), reloj = relojEvento(d.evento.zona);
+  const r = { items, reloj, prev:null, cur:null, next:null, fase:"vacio", pausa:false, manual: d.control.modo === "manual" };
+  if (!items.length) return r;
+  if (r.manual){
+    const a = d.control.actual;
+    if (a === "__fin"){ r.fase = "fin"; r.prev = items.length-1; return r; }
+    const idx = items.findIndex(x => x.id === a);
+    if (idx < 0){ r.fase = "antes"; r.next = 0; return r; }
+    r.fase = "vivo"; r.cur = idx; r.prev = idx > 0 ? idx-1 : null; r.next = idx+1 < items.length ? idx+1 : null; return r;
+  }
+  const fecha = d.evento.fecha || reloj.fecha;
+  if (reloj.fecha < fecha){ r.fase = "antes"; r.next = 0; return r; }
+  if (reloj.fecha > fecha){ r.fase = "fin"; r.prev = items.length-1; return r; }
+  const now = reloj.min;
+  if (now < toMin(items[0].inicio)){ r.fase = "antes"; r.next = 0; return r; }
+  for (let i = 0; i < items.length; i++){
+    const ini = toMin(items[i].inicio), fin = finDe(items, i);
+    if (now >= ini && now < fin){ r.fase = "vivo"; r.cur = i; r.prev = i>0 ? i-1 : null; r.next = i+1<items.length ? i+1 : null; return r; }
+    if (items[i+1] && now >= fin && now < toMin(items[i+1].inicio)){ r.fase = "vivo"; r.pausa = true; r.prev = i; r.next = i+1; return r; }
+  }
+  r.fase = "fin"; r.prev = items.length-1; return r;
+}
+
+/* ---------- pantalla 1: Ahora ---------- */
+function persona(){ return $("persona").value; }
+function tareaDe(it, p){ return p && it && it.tareas ? (it.tareas[p] || "").trim() : ""; }
+
+function renderCue(el, tag, it, opts = {}){
+  el.classList.toggle("empty", !it);
+  if (!it){ el.innerHTML = `<div class="tag">${tag}</div><div class="t">—</div><div class="ttl">${esc(opts.vacio || "Nada todavía")}</div>`; return; }
+  const p = persona(), t = tareaDe(it, p);
+  el.innerHTML = `<div class="tag">${tag}${opts.extra ? " · " + esc(opts.extra) : ""}</div>
+    <div class="t">${fmtHora(it.inicio)}</div><div class="ttl">${esc(it.titulo || "Sin título")}</div>
+    ${it.lugar ? `<div class="meta">${esc(it.lugar)}</div>` : ""}
+    ${t ? `<div class="mine"><b>${esc(p)}:</b> ${esc(t)}</div>` : ""}`;
+}
+
+function renderAhora(){
+  if (!DATA) return;
+  const r = calcular(DATA), it = r.items, p = persona();
+  const now = r.reloj.min;
+  const hoyEvento = !DATA.evento.fecha || DATA.evento.fecha === r.reloj.fecha;
+
+  // Terminó
+  renderCue($("cueTermino"), "Terminó", r.prev != null ? it[r.prev] : null, { vacio: r.fase === "antes" ? "Aún no empieza" : "Nada todavía" });
+  // Próximo
+  let extra = "";
+  if (r.next != null && hoyEvento && !r.manual){ const falta = toMin(it[r.next].inicio) - now; if (falta > 0) extra = "en " + fmtDur(falta); }
+  renderCue($("cueProximo"), "Próximo", r.next != null ? it[r.next] : null, { extra, vacio: r.fase === "fin" ? "Fin del programa" : "No hay más actividades" });
+
+  // Ahora
+  const a = $("cueAhora");
+  const modo = r.manual ? "Marcado por coordinación" : "Según el horario";
+  let titulo, when = "", desc = "", barra = "", pendiente = "";
+  if (r.fase === "vacio"){ titulo = "El programa aún no está cargado"; }
+  else if (r.fase === "antes"){
+    titulo = "Aún no comienza";
+    const first = it[0];
+    when = `<span>Empieza ${DATA.evento.fecha && !hoyEvento ? fmtFecha(DATA.evento.fecha) + " · " : ""}${fmtHora(first.inicio)}</span>`;
+    if (hoyEvento && !r.manual) when += `<span>faltan ${fmtDur(toMin(first.inicio) - now)}</span>`;
+  }
+  else if (r.fase === "fin"){ titulo = "El programa terminó"; desc = "Gracias por acompañarnos."; }
+  else if (r.pausa){
+    titulo = "Pausa";
+    when = `<span>Sigue a las ${fmtHora(it[r.next].inicio)}</span><span>en ${fmtDur(toMin(it[r.next].inicio) - now)}</span>`;
+  }
+  else {
+    const c = it[r.cur], ini = toMin(c.inicio), fin = finDe(it, r.cur);
+    titulo = c.titulo || "Sin título";
+    when = `<span>${fmtHora(c.inicio)} – ${fmtHora(c.fin || (it[r.cur+1] && it[r.cur+1].inicio) || "")}</span>${c.lugar ? `<span>${esc(c.lugar)}</span>` : ""}`;
+    desc = c.detalle || "";
+    if (hoyEvento){
+      const total = Math.max(1, fin - ini), pasado = Math.min(Math.max(now - ini, 0), total * 3);
+      const resta = fin - now;
+      barra = `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(pasado/total,1)*100)}"><span style="width:${Math.min(pasado/total,1)*100}%"></span></div>
+        <div class="left"><span>${fmtDur(Math.min(pasado,total))} de ${fmtDur(total)}</span>${resta >= 0 ? `<span>quedan ${fmtDur(resta)}</span>` : `<span class="over">+${fmtDur(-resta)} sobre el horario</span>`}</div>`;
+    }
+  }
+
+  // Lo que le toca a la persona
+  if (p && r.fase !== "vacio"){
+    const actual = r.cur != null ? tareaDe(it[r.cur], p) : "";
+    const desde = r.cur != null ? r.cur + 1 : (r.next != null ? r.next : it.length);
+    let prox = null;
+    for (let i = desde; i < it.length; i++){ if (tareaDe(it[i], p)){ prox = i; break; } }
+    let html = `<div class="lbl">Lo tuyo · ${esc(p)}</div>`;
+    if (actual) html += `<div class="txt strong">${esc(actual)}</div>`;
+    else html += `<div class="txt">${r.fase === "fin" ? "Terminaste por hoy." : "Ahora no te toca nada."}</div>`;
+    if (prox != null){
+      const f = toMin(it[prox].inicio) - now, cuando = hoyEvento && !r.manual && f > 0 ? ` · en ${fmtDur(f)}` : "";
+      html += `<div class="nxt">Tu próximo turno: <b>${fmtHora(it[prox].inicio)} · ${esc(it[prox].titulo)}</b>${cuando}<br>${esc(tareaDe(it[prox], p))}</div>`;
+    } else if (r.fase !== "fin" && !actual){
+      html += `<div class="nxt">No tienes más tareas en el programa.</div>`;
+    }
+    pendiente = `<div class="task">${html}</div>`;
+  }
+
+  const vivo = r.fase === "vivo" && !r.pausa;
+  a.innerHTML = `<div class="row1"><span class="onair ${vivo ? "" : "idle"}"><i></i>${vivo ? "Ahora" : "En espera"}</span><span class="mode">${modo}</span></div>
+    <h2>${esc(titulo)}</h2>${when ? `<div class="when">${when}</div>` : ""}${desc ? `<p class="desc">${esc(desc)}</p>` : ""}${barra}${pendiente}`;
+  renderCoord(r);
+}
+
+/* Coordinadores: marcar «Concluyó» desde la pantalla principal */
+let pidePin = false, ultimoPaso = null;
+const esCoord = p => !!p && DATA.coordinadores.includes(p);
+function renderCoord(r){
+  const el = $("ctlAhora"), p = persona();
+  const activo = document.activeElement && document.activeElement.id === "pinCoord";
+  if (activo) return;                      // no borrar lo que está escribiendo
+  el.hidden = !esCoord(p) || r.fase === "vacio";
+  if (el.hidden) return;
+  let txt;
+  if (r.fase === "fin") txt = null;
+  else if (r.fase === "antes") txt = "▶ Comenzar el programa";
+  else if (r.pausa) txt = `▶ Empezar «${r.items[r.next].titulo}»`;
+  else txt = r.next != null ? "✓ Concluyó · pasar al siguiente" : "✓ Concluyó · terminar el programa";
+  el.innerHTML = `<div class="lbl">Coordinación · ${esc(p)}</div>
+    ${txt ? `<button class="btn concluyo" type="button" id="btnConcluyo">${esc(txt)}</button>` : `<div class="meta">El programa está marcado como terminado.</div>`}
+    ${pidePin ? `<form class="pin" id="formPin"><input type="password" id="pinCoord" placeholder="Contraseña de coordinación" aria-label="Contraseña de coordinación" autocomplete="current-password"><button class="btn primary" type="submit">Confirmar</button></form>` : ""}
+    <div class="err" id="errCoord"></div>
+    ${ultimoPaso !== null || r.fase === "fin" ? `<button class="undo" type="button" id="btnDeshacer">↶ Deshacer: volver al punto anterior</button>` : ""}`;
+  if (pidePin) setTimeout(() => $("pinCoord")?.focus(), 0);
+}
+function siguienteControl(){
+  const r = calcular(DATA), it = r.items;
+  let i;
+  if (r.fase === "antes") i = 0;
+  else if (r.pausa) i = r.next;
+  else if (r.cur != null) i = r.cur + 1;
+  else return null;
+  return { modo:"manual", actual: i >= it.length ? "__fin" : it[i].id };
+}
+function anteriorControl(){
+  const r = calcular(DATA), it = r.items;
+  const i = r.fase === "fin" ? it.length - 1 : r.cur != null ? r.cur - 1 : r.next != null ? r.next - 1 : -1;
+  return { modo:"manual", actual: i < 0 ? null : it[i].id };
+}
+async function pasoCoord(ctrl){
+  const err = $("errCoord");
+  if (!clave){ pidePin = { ctrl }; renderAhora(); return; }
+  const btns = $("ctlAhora").querySelectorAll("button"); btns.forEach(b => b.disabled = true);
+  const { error } = await sb.rpc("evento_control", { p_clave: clave, p_control: ctrl });
+  btns.forEach(b => b.disabled = false);
+  if (error){
+    if (/clave_incorrecta/.test(error.message)){ clave = null; store.del("evento_clave"); pidePin = { ctrl }; renderAhora(); $("errCoord").textContent = "La contraseña no es correcta o cambió."; return; }
+    err.textContent = "No se pudo marcar. Revisa tu conexión e intenta otra vez."; return;
+  }
+  await cargar();
+}
+$("ctlAhora").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.id === "btnConcluyo"){ const c = siguienteControl(); if (c){ ultimoPaso = true; pasoCoord(c); } }
+  if (b.id === "btnDeshacer"){ ultimoPaso = null; pasoCoord(anteriorControl()); }
+});
+$("ctlAhora").addEventListener("submit", async e => {
+  e.preventDefault();
+  const c = $("pinCoord").value; if (!c) return;
+  const { data, error } = await sb.rpc("evento_verificar", { p_clave: c });
+  if (error){ $("errCoord").textContent = "No se pudo comprobar. Revisa tu conexión."; return; }
+  if (!data){ $("errCoord").textContent = "Contraseña incorrecta."; return; }
+  clave = c; store.set("evento_clave", c);
+  const pend = pidePin.ctrl; pidePin = false; $("pinCoord").blur(); await pasoCoord(pend);
+});
+
+/* ---------- pantalla 2: Programa ---------- */
+function renderPrograma(){
+  if (!DATA) return;
+  const r = calcular(DATA), p = persona(), solo = p && $("soloMio").checked;
+  $("soloMioWrap").hidden = !p;
+  const lista = $("listaPrograma");
+  if (!r.items.length){ lista.innerHTML = `<li style="display:block"><div class="vacio" style="border:0">El programa todavía no tiene actividades.</div></li>`; return; }
+  const filas = r.items.map((it, i) => {
+    if (solo && !tareaDe(it, p)) return "";
+    let cls = "";
+    if (r.fase === "fin" || (r.prev != null && i <= r.prev && i !== r.cur)) cls = "past";
+    if (i === r.cur) cls = "cur";
+    if (r.fase === "vivo" && r.cur == null && r.next != null && i < r.next) cls = "past";
+    const tareas = Object.entries(it.tareas || {}).filter(([n,t]) => t && t.trim() && (!solo || n === p));
+    const chips = tareas.length ? `<div class="chips">${tareas.map(([n,t]) => `<span class="chip ${n === p ? "me" : ""}"><b>${esc(n)}:</b> ${esc(t)}</span>`).join("")}</div>` : "";
+    return `<li class="${cls}"><div class="t">${fmtHora(it.inicio)}${it.fin ? `<small>a ${fmtHora(it.fin)}</small>` : ""}</div>
+      <div class="body"><div class="ttl">${esc(it.titulo || "Sin título")}${i === r.cur ? `<span class="livepill">Ahora</span>` : ""}</div>
+      ${it.lugar || it.detalle ? `<div class="meta">${esc([it.lugar, it.detalle].filter(Boolean).join(" · "))}</div>` : ""}${chips}</div></li>`;
+  }).join("");
+  lista.innerHTML = filas || `<li style="display:block"><div class="vacio" style="border:0">No tienes tareas asignadas en el programa.</div></li>`;
+}
+
+/* ---------- encabezado y personas ---------- */
+function renderHeader(){
+  if (!DATA) return;
+  $("evNombre").textContent = DATA.evento.nombre || "Programa del evento";
+  const reloj = relojEvento(DATA.evento.zona);
+  $("evSub").textContent = [DATA.evento.fecha ? fmtFecha(DATA.evento.fecha) : "", "Hora: " + fmtHora(reloj.hhmm)].filter(Boolean).join(" · ");
+  document.title = DATA.evento.nombre ? DATA.evento.nombre + " · Programa" : "Programa en vivo";
+  const sel = $("persona"), actual = sel.value || store.get("evento_persona") || new URLSearchParams(location.search).get("p") || "";
+  const opciones = ["", ...DATA.personas];
+  const firma = opciones.join("|");
+  if (sel.dataset.firma !== firma){
+    sel.innerHTML = opciones.map(n => `<option value="${esc(n)}">${n ? esc(n) : "Público general"}</option>`).join("");
+    sel.dataset.firma = firma;
+  }
+  sel.value = DATA.personas.includes(actual) ? actual : "";
+}
+$("persona").addEventListener("change", () => { store.set("evento_persona", persona()); renderTodo(); });
+$("soloMio").addEventListener("change", renderPrograma);
+
+function renderTodo(){ renderHeader(); renderAhora(); renderPrograma(); if (clave && !editorAbierto()) abrirEditor(); else if (editorAbierto()) renderControl(); }
+
+/* ---------- datos remotos ---------- */
+function estado(ok, txt){ const e = $("estado"); e.classList.toggle("ok", ok === true); e.classList.toggle("err", ok === false); $("estadoTxt").textContent = txt; }
+function aplicar(row){
+  if (!row) return;
+  if (ACTUALIZADO && row.actualizado && row.actualizado <= ACTUALIZADO && DATA) return;
+  ACTUALIZADO = row.actualizado;
+  DATA = normalizar(row.data);
+  if (dirty) remotoPendiente = true;
+  else if (editorAbierto()) { draft = structuredClone(DATA); renderEditor(); }
+  renderTodo();
+  if (dirty) renderSavebar();
+  const t = new Date(row.actualizado);
+  estado(true, "En vivo · actualizado " + t.toLocaleTimeString("es-DO", { hour:"numeric", minute:"2-digit" }));
+}
+async function cargar(){
+  const { data, error } = await sb.from("evento_programa").select("data, actualizado").eq("id", 1).maybeSingle();
+  if (error){ estado(false, "Sin conexión. Reintentando…"); return; }
+  if (!data){ DATA = vacio(); renderTodo(); estado(true, "En vivo"); return; }
+  aplicar(data);
+}
+sb.channel("evento_programa").on("postgres_changes", { event:"*", schema:"public", table:"evento_programa" }, pl => aplicar(pl.new))
+  .subscribe(s => { if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") estado(false, "Reconectando…"); });
+setInterval(cargar, 45000);
+setInterval(() => { renderHeader(); renderAhora(); if (!$("v-programa").hidden) renderPrograma(); }, 15000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) cargar(); });
+
+/* ---------- pestañas ---------- */
+function irA(tab){
+  if (!["ahora","programa","editar"].includes(tab)) tab = "ahora";
+  for (const t of ["ahora","programa","editar"]) $("v-" + t).hidden = t !== tab;
+  document.querySelectorAll("nav.tabs a").forEach(a => a.dataset.tab === tab ? a.setAttribute("aria-current","page") : a.removeAttribute("aria-current"));
+  if (tab === "programa") renderPrograma();
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", () => irA(location.hash.slice(1)));
+window.addEventListener("beforeunload", e => { if (dirty){ e.preventDefault(); e.returnValue = ""; } });
+
+/* ---------- pantalla 3: Editar ---------- */
+const editorAbierto = () => !$("editor").hidden;
+$("formClave").addEventListener("submit", async e => {
+  e.preventDefault();
+  const c = $("clave").value; if (!c) return;
+  $("btnEntrar").disabled = true; $("errClave").textContent = "";
+  const { data, error } = await sb.rpc("evento_verificar", { p_clave: c });
+  $("btnEntrar").disabled = false;
+  if (error){ $("errClave").textContent = "No se pudo comprobar. Revisa tu conexión e intenta otra vez."; return; }
+  if (!data){ $("errClave").textContent = "Contraseña incorrecta."; return; }
+  clave = c; store.set("evento_clave", c); $("clave").value = ""; abrirEditor();
+});
+function abrirEditor(){
+  if (!DATA) return;
+  $("formClave").hidden = true; $("editor").hidden = false;
+  draft = structuredClone(DATA); dirty = false; remotoPendiente = false; renderEditor();
+}
+function salir(){
+  clave = null; store.del("evento_clave"); dirty = false;
+  $("editor").hidden = true; $("editor").innerHTML = ""; $("formClave").hidden = false;
+}
+function marcar(){ dirty = true; renderSavebar(); }
+
+const ICO = {
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>'
+};
+
+function renderEditor(){
+  const d = draft, ed = $("editor");
+  const opcPersonas = sel => ['<option value="">Elegir…</option>', ...d.personas.map(n => `<option value="${esc(n)}" ${n === sel ? "selected" : ""}>${esc(n)}</option>`)].join("");
+  ed.innerHTML = `
+  <div class="view">
+    <div id="avisoRemoto"></div>
+    <section class="panel" id="panelControl"></section>
+
+    <section class="panel">
+      <h3>Datos del evento</h3>
+      <label class="field"><span>Nombre</span><input type="text" id="e-nombre" value="${esc(d.evento.nombre)}"></label>
+      <div class="grid2">
+        <label class="field"><span>Fecha</span><input type="date" id="e-fecha" value="${esc(d.evento.fecha)}"></label>
+        <label class="field"><span>Zona horaria</span><select id="e-zona">${["America/Santo_Domingo","America/New_York","America/Puerto_Rico","America/Bogota","America/Mexico_City","Europe/Madrid"].map(z => `<option ${z === d.evento.zona ? "selected" : ""}>${z}</option>`).join("")}</select></label>
+      </div>
+      <p class="help">Sin fecha, el programa se toma como de hoy.</p>
+    </section>
+
+    <section class="panel">
+      <h3>Personas y equipos</h3>
+      <p class="help">Aparecen en el menú «¿Quién eres?». Pueden ser nombres o roles (Sonido, Protocolo…). Quien «Coordina» ve en la pantalla principal el botón «Concluyó» para avanzar el programa.</p>
+      <div class="people" id="e-personas">
+        ${d.personas.map((n, i) => `<div class="person"><input type="text" id="per-${i}" data-per="${i}" data-old="${esc(n)}" value="${esc(n)}" aria-label="Persona ${i+1}"><div class="row"><label class="switch"><input type="checkbox" id="coord-${i}" data-coord="${i}" ${d.coordinadores.includes(n) ? "checked" : ""}> Coordina</label><button class="iconbtn" type="button" data-delper="${i}" aria-label="Quitar ${esc(n)}">${ICO.x}</button></div></div>`).join("")}
+      </div>
+      <div class="person"><input type="text" id="per-nueva" placeholder="Agregar persona o equipo"><button class="btn" type="button" id="btnAddPer">Agregar</button></div>
+    </section>
+
+    <section class="panel">
+      <h3>Actividades</h3>
+      <p class="help">Se ordenan solas por hora de inicio al guardar. Si no pones hora de fin, dura hasta que empieza la siguiente.</p>
+      <div class="tasks" id="e-items">
+        ${d.items.map((it, i) => `
+        <div class="item" data-item="${i}">
+          <div class="head">
+            <label class="field"><span>Inicio</span><input type="time" id="it-${it.id}-inicio" data-f="inicio" value="${esc(it.inicio)}"></label>
+            <label class="field"><span>Fin (opcional)</span><input type="time" id="it-${it.id}-fin" data-f="fin" value="${esc(it.fin)}"></label>
+          </div>
+          <label class="field"><span>Actividad</span><input type="text" id="it-${it.id}-titulo" data-f="titulo" value="${esc(it.titulo)}" placeholder="Ej.: Palabras de bienvenida"></label>
+          <div class="grid2">
+            <label class="field"><span>Lugar</span><input type="text" id="it-${it.id}-lugar" data-f="lugar" value="${esc(it.lugar)}"></label>
+            <label class="field"><span>Detalle</span><input type="text" id="it-${it.id}-detalle" data-f="detalle" value="${esc(it.detalle)}"></label>
+          </div>
+          <div class="field"><span>Quién hace qué</span>
+            <div class="tasks">
+              ${Object.entries(it.tareas || {}).map(([n, t], k) => `
+              <div class="taskrow"><select id="it-${it.id}-tp-${k}" data-tp="${esc(n)}" aria-label="Persona">${opcPersonas(n)}</select>
+                <textarea id="it-${it.id}-tt-${k}" data-tt="${esc(n)}" rows="1" aria-label="Tarea de ${esc(n)}">${esc(t)}</textarea>
+                <button class="iconbtn" type="button" data-deltask="${esc(n)}" aria-label="Quitar tarea">${ICO.x}</button></div>`).join("")}
+              <div class="taskrow"><select id="it-${it.id}-newp" data-newp aria-label="Asignar a">${opcPersonas("")}</select>
+                <textarea id="it-${it.id}-newt" data-newt rows="1" placeholder="Qué debe tener pendiente"></textarea>
+                <button class="iconbtn" type="button" data-addtask aria-label="Agregar tarea"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div>
+            </div>
+          </div>
+          <div class="row" data-acciones>
+            <button class="btn ghost" type="button" data-dup>${ICO.copy} Duplicar</button>
+            <button class="btn danger ghost" type="button" data-del>${ICO.trash} Eliminar</button>
+          </div>
+        </div>`).join("")}
+      </div>
+      <button class="btn" type="button" id="btnAddItem">+ Agregar actividad</button>
+    </section>
+
+    <section class="panel">
+      <h3>Contraseña</h3>
+      <div class="grid2">
+        <input type="password" id="e-clave-nueva" placeholder="Nueva contraseña (mín. 6)" aria-label="Nueva contraseña" autocomplete="new-password">
+        <button class="btn" type="button" id="btnClave">Cambiar contraseña</button>
+      </div>
+      <div class="err" id="errClaveNueva"></div>
+      <button class="btn ghost" type="button" id="btnSalir">Salir del modo edición</button>
+    </section>
+
+    <div class="savebar" id="savebar"></div>
+  </div>`;
+  renderControl(); renderSavebar(); renderAviso();
+}
+
+/* Control en vivo: modo auto/manual, anterior/siguiente */
+function renderControl(){
+  const el = $("panelControl"); if (!el || !DATA) return;
+  const r = calcular(DATA), manual = DATA.control.modo === "manual";
+  let ahora = "—";
+  if (r.fase === "antes") ahora = "Aún no comienza"; else if (r.fase === "fin") ahora = "Programa terminado";
+  else if (r.pausa) ahora = "Pausa"; else if (r.cur != null) ahora = `${fmtHora(r.items[r.cur].inicio)} · ${r.items[r.cur].titulo}`;
+  el.innerHTML = `<h3>Control en vivo</h3>
+    <p class="help">Automático sigue el reloj. Manual te deja marcar a mano qué está pasando, útil si el programa se atrasa. Se aplica al instante para todos.</p>
+    <div class="seg" role="group" aria-label="Modo">
+      <button type="button" data-modo="auto" aria-pressed="${!manual}">Automático</button>
+      <button type="button" data-modo="manual" aria-pressed="${manual}">Manual</button>
+    </div>
+    <div class="ctlnow"><small>Ahora para todos</small>${esc(ahora)}</div>
+    ${manual ? `<div class="row"><button class="btn big" type="button" data-paso="-1">◀ Anterior</button><button class="btn big primary" type="button" data-paso="1">Siguiente ▶</button></div>` : ""}
+    <div class="err" id="errControl"></div>`;
+}
+async function enviarControl(ctrl){
+  $("errControl") && ($("errControl").textContent = "");
+  const { error } = await sb.rpc("evento_control", { p_clave: clave, p_control: ctrl });
+  if (error){
+    if (/clave_incorrecta/.test(error.message)){ salir(); $("errClave").textContent = "La contraseña cambió. Vuelve a entrar."; return; }
+    $("errControl").textContent = "No se pudo aplicar. Revisa tu conexión."; return;
+  }
+  await cargar();
+}
+
+function renderSavebar(){
+  const el = $("savebar"); if (!el) return;
+  el.innerHTML = dirty
+    ? `<span class="msg dirty">Tienes cambios sin guardar</span><div class="row"><button class="btn ghost" type="button" id="btnDescartar">Descartar</button><button class="btn primary" type="button" id="btnGuardar">Guardar y publicar</button></div>`
+    : `<span class="msg">Todo guardado. Lo que ves es lo que ven todos.</span>`;
+  renderAviso();
+}
+function renderAviso(){
+  const el = $("avisoRemoto"); if (!el) return;
+  el.innerHTML = remotoPendiente && dirty ? `<div class="notice"><span>Otra persona guardó cambios mientras editabas. Si guardas, tu versión reemplaza la suya.</span><button class="btn" type="button" id="btnRecargar">Ver la versión nueva</button></div>` : "";
+}
+
+function leerFormulario(){
+  const d = draft;
+  d.evento.nombre = $("e-nombre").value.trim();
+  d.evento.fecha = $("e-fecha").value;
+  d.evento.zona = $("e-zona").value;
+  document.querySelectorAll("#e-items .item").forEach(box => {
+    const it = d.items[+box.dataset.item];
+    box.querySelectorAll("[data-f]").forEach(inp => it[inp.dataset.f] = inp.value.trim());
+    const tareas = {};
+    box.querySelectorAll(".taskrow").forEach(row => {
+      const s = row.querySelector("[data-tp]"), t = row.querySelector("[data-tt]");
+      if (s && t && s.value && t.value.trim()) tareas[s.value] = (tareas[s.value] ? tareas[s.value] + " / " : "") + t.value.trim();
+    });
+    it.tareas = tareas;
+  });
+}
+
+$("editor").addEventListener("input", e => {
+  marcar();
+});
+$("editor").addEventListener("change", e => {
+  if (e.target.dataset.coord != null){
+    const n = draft.personas[+e.target.dataset.coord];
+    draft.coordinadores = e.target.checked ? [...new Set([...draft.coordinadores, n])] : draft.coordinadores.filter(c => c !== n);
+    return;
+  }
+  if (e.target.dataset.per != null){
+    leerFormulario();
+    const viejo = e.target.dataset.old, nuevo = e.target.value.trim();
+    if (nuevo && nuevo !== viejo && !draft.personas.includes(nuevo)){
+      draft.personas[+e.target.dataset.per] = nuevo;
+      draft.coordinadores = draft.coordinadores.map(c => c === viejo ? nuevo : c);
+      draft.items.forEach(it => { if (viejo in it.tareas){ it.tareas[nuevo] = it.tareas[viejo]; delete it.tareas[viejo]; } });
+    }
+    renderEditor(); marcar();
+  }
+});
+$("editor").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const box = b.closest(".item"), idx = box ? +box.dataset.item : null;
+
+  if (b.dataset.modo){
+    const ctrl = { modo: b.dataset.modo, actual: DATA.control.actual };
+    if (b.dataset.modo === "manual"){ const r = calcular(DATA); ctrl.actual = r.cur != null ? r.items[r.cur].id : (r.fase === "fin" ? "__fin" : (r.next != null ? (r.next > 0 ? r.items[r.next-1].id : null) : null)); }
+    return enviarControl(ctrl);
+  }
+  if (b.dataset.paso){
+    const items = ordenados(DATA), a = DATA.control.actual;
+    let i = a === "__fin" ? items.length : items.findIndex(x => x.id === a);
+    i = Math.min(Math.max(i + +b.dataset.paso, -1), items.length);
+    return enviarControl({ modo:"manual", actual: i < 0 ? null : i >= items.length ? "__fin" : items[i].id });
+  }
+  if (b.id === "btnSalir"){ if (dirty && !b.dataset.ok){ b.dataset.ok = 1; b.textContent = "Tienes cambios sin guardar. Toca otra vez para salir sin guardar"; return; } return salir(); }
+  if (b.id === "btnDescartar"){ draft = structuredClone(DATA); dirty = false; remotoPendiente = false; return renderEditor(); }
+  if (b.id === "btnRecargar"){ draft = structuredClone(DATA); dirty = false; remotoPendiente = false; return renderEditor(); }
+  if (b.id === "btnGuardar") return guardar(b);
+  if (b.id === "btnClave") return cambiarClave(b);
+
+  leerFormulario();
+  if (b.id === "btnAddPer"){
+    const n = $("per-nueva").value.trim(); if (!n || draft.personas.includes(n)) return;
+    draft.personas.push(n); renderEditor(); marcar(); $("per-nueva").focus(); return;
+  }
+  if (b.dataset.delper != null){
+    const n = draft.personas[+b.dataset.delper];
+    draft.personas.splice(+b.dataset.delper, 1); draft.coordinadores = draft.coordinadores.filter(c => c !== n); draft.items.forEach(it => delete it.tareas[n]); renderEditor(); return marcar();
+  }
+  if (b.id === "btnAddItem"){
+    const ult = ordenados(draft).at(-1);
+    draft.items.push({ id: uid(), inicio: ult ? (ult.fin || ult.inicio) : "", fin:"", titulo:"", lugar:"", detalle:"", tareas:{} });
+    renderEditor(); marcar(); document.querySelector("#e-items .item:last-child input[data-f=titulo]")?.focus(); return;
+  }
+  if (b.hasAttribute("data-addtask")){
+    const s = box.querySelector("[data-newp]"), t = box.querySelector("[data-newt]");
+    if (!s.value || !t.value.trim()) { (s.value ? t : s).focus(); return; }
+    const it = draft.items[idx]; it.tareas[s.value] = (it.tareas[s.value] ? it.tareas[s.value] + " / " : "") + t.value.trim();
+    renderEditor(); return marcar();
+  }
+  if (b.dataset.deltask != null){ delete draft.items[idx].tareas[b.dataset.deltask]; renderEditor(); return marcar(); }
+  if (b.hasAttribute("data-dup")){ const c = structuredClone(draft.items[idx]); c.id = uid(); draft.items.splice(idx+1, 0, c); renderEditor(); return marcar(); }
+  if (b.hasAttribute("data-del")){
+    const acc = b.parentElement;
+    acc.innerHTML = `<div class="confirm">¿Eliminar «${esc(draft.items[idx].titulo || "esta actividad")}»? <button class="btn danger" type="button" data-delok>Sí, eliminar</button><button class="btn ghost" type="button" data-delno>No</button></div>`;
+    return;
+  }
+  if (b.hasAttribute("data-delok")){ draft.items.splice(idx, 1); renderEditor(); return marcar(); }
+  if (b.hasAttribute("data-delno")){ renderEditor(); return; }
+});
+
+async function guardar(b){
+  leerFormulario();
+  const sinHora = draft.items.filter(i => i.titulo && !i.inicio);
+  if (sinHora.length){ $("savebar").querySelector(".msg").textContent = `Falta la hora de inicio en «${sinHora[0].titulo}».`; return; }
+  draft.items = draft.items.filter(i => i.inicio || i.titulo).sort((a,b) => toMin(a.inicio) - toMin(b.inicio));
+  draft.personas = [...new Set(draft.personas.map(s => s.trim()).filter(Boolean))];
+  draft.coordinadores = draft.coordinadores.filter(c => draft.personas.includes(c));
+  const payload = { ...draft, control: DATA.control };
+  b.disabled = true; b.textContent = "Guardando…";
+  const { error } = await sb.rpc("evento_guardar", { p_clave: clave, p_data: payload });
+  if (error){
+    b.disabled = false; b.textContent = "Guardar y publicar";
+    if (/clave_incorrecta/.test(error.message)){ salir(); $("errClave").textContent = "La contraseña cambió. Vuelve a entrar."; return; }
+    $("savebar").querySelector(".msg").textContent = "No se pudo guardar. Revisa tu conexión e intenta otra vez."; return;
+  }
+  dirty = false; remotoPendiente = false; await cargar(); draft = structuredClone(DATA); renderEditor();
+  $("savebar").querySelector(".msg").textContent = "Guardado. Ya lo ven todos.";
+}
+async function cambiarClave(b){
+  const n = $("e-clave-nueva").value, err = $("errClaveNueva");
+  if (n.length < 6){ err.textContent = "La contraseña debe tener al menos 6 caracteres."; return; }
+  b.disabled = true;
+  const { error } = await sb.rpc("evento_cambiar_clave", { p_clave: clave, p_nueva: n });
+  b.disabled = false;
+  if (error){ err.textContent = "No se pudo cambiar. Intenta otra vez."; return; }
+  clave = n; store.set("evento_clave", n); $("e-clave-nueva").value = "";
+  err.style.color = "var(--ok)"; err.textContent = "Contraseña cambiada. Avísale al resto del equipo.";
+}
+
+/* ---------- arranque ---------- */
+irA(location.hash.slice(1) || "ahora");
+cargar();
+</script>
+</body>
+</html>
