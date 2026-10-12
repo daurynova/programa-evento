@@ -354,7 +354,7 @@ function tareaDe(it, p){ return p && it && it.tareas ? (it.tareas[p] || "").trim
 function renderCue(el, tag, it, opts = {}){
   el.classList.toggle("empty", !it);
   if (!it){ el.innerHTML = `<div class="tag">${tag}</div><div class="t">—</div><div class="ttl">${esc(opts.vacio || "Nada todavía")}</div>`; return; }
-  const p = persona(), t = tareaDe(it, p);
+  const p = persona(), t = opts.sinTarea ? "" : tareaDe(it, p);
   el.innerHTML = `<div class="tag">${tag}${opts.extra ? " · " + esc(opts.extra) : ""}</div>
     <div class="t">${fmtHora(it.inicio)}</div><div class="ttl">${esc(it.titulo || "Sin título")}</div>
     ${it.lugar ? `<div class="meta">${esc(it.lugar)}</div>` : ""}
@@ -368,7 +368,7 @@ function renderAhora(){
   const hoyEvento = !DATA.evento.fecha || DATA.evento.fecha === r.reloj.fecha;
 
   // Terminó
-  renderCue($("cueTermino"), "Terminó", r.prev != null ? it[r.prev] : null, { vacio: r.fase === "antes" ? "Aún no empieza" : "Nada todavía" });
+  renderCue($("cueTermino"), "Terminó", r.prev != null ? it[r.prev] : null, { sinTarea: true, vacio: r.fase === "antes" ? "Aún no empieza" : "Nada todavía" });
   // Próximo
   let extra = "";
   if (r.next != null && hoyEvento && !r.manual){ const falta = toMin(it[r.next].inicio) - now; if (falta > 0) extra = "en " + fmtDur(falta); }
@@ -441,11 +441,13 @@ function renderCoord(r){
   else if (r.fase === "antes") txt = "▶ Comenzar el programa";
   else if (r.pausa) txt = `▶ Empezar «${r.items[r.next].titulo}»`;
   else txt = r.next != null ? "✓ Concluyó · pasar al siguiente" : "✓ Concluyó · terminar el programa";
-  el.innerHTML = `<div class="lbl">Coordinación · ${esc(p)}</div>
+  const html = `<div class="lbl">Coordinación · ${esc(p)}</div>
     ${txt ? `<button class="btn concluyo" type="button" id="btnConcluyo">${esc(txt)}</button>` : `<div class="meta">El programa está marcado como terminado.</div>`}
     ${pidePin ? `<form class="pin" id="formPin"><input type="password" id="pinCoord" placeholder="Contraseña de coordinación" aria-label="Contraseña de coordinación" autocomplete="current-password"><button class="btn primary" type="submit">Confirmar</button></form>` : ""}
     <div class="err" id="errCoord"></div>
     ${ultimoPaso !== null || r.fase === "fin" ? `<button class="undo" type="button" id="btnDeshacer">↶ Deshacer: volver al punto anterior</button>` : ""}`;
+  if (el.dataset.html === html) return;     // no redibujar si nada cambió: un toque nunca se pierde
+  el.dataset.html = html; el.innerHTML = html;
   if (pidePin) setTimeout(() => $("pinCoord")?.focus(), 0);
 }
 function siguienteControl(){
