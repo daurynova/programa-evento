@@ -114,6 +114,14 @@ main{padding-block:18px 24px}
 .task .nxt{font-size:.88rem;color:var(--now-muted);background:var(--now-chip);padding:8px 10px;border-radius:10px}
 .task .nxt b{color:var(--now-fg);font-weight:650}
 
+/* Texto de voz en off */
+.guion{white-space:pre-line;font:500 1.28rem/1.5 var(--f-body);color:var(--now-fg)}
+.guion-next{grid-column:1/-1;margin-top:8px;padding:10px 12px;border-radius:10px;background:var(--bg);white-space:pre-line;font-size:.98rem;line-height:1.45}
+.guion-next span{display:block;font:700 .66rem/1 var(--f-body);text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:6px}
+details.gtxt{margin-top:4px;font-size:.88rem}
+details.gtxt summary{cursor:pointer;color:var(--accent);font-weight:600}
+details.gtxt div{white-space:pre-line;margin-top:6px;padding:9px 11px;border-radius:10px;background:var(--bg);line-height:1.45}
+
 /* Botón de coordinación en la pantalla principal */
 .coord{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px}
 .coord .lbl{font:700 .68rem/1 var(--f-body);text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
@@ -167,7 +175,8 @@ ol.prog li.cur::before{content:"";position:absolute;left:0;top:0;bottom:0;width:
 .ctlnow small{display:block;font:500 .78rem/1.3 var(--f-mono);color:var(--muted);margin-bottom:3px}
 
 .people{display:flex;flex-direction:column;gap:8px}
-.person{display:grid;grid-template-columns:1fr auto;gap:8px}
+.person{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+@media (max-width:520px){.person:has([data-coord]){grid-template-columns:1fr}.person:has([data-coord]) .row{justify-content:space-between}}
 .item{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
 .item .head{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .tasks{display:flex;flex-direction:column;gap:8px}
@@ -311,10 +320,17 @@ function normalizar(d){
   const v = vacio(); d = d && typeof d === "object" ? d : {};
   return { evento:{ ...v.evento, ...(d.evento||{}) }, personas: Array.isArray(d.personas) ? d.personas : [],
     coordinadores: Array.isArray(d.coordinadores) ? d.coordinadores : [...COORD_DEF],
-    items: Array.isArray(d.items) ? d.items.map(i => ({ id:i.id||uid(), inicio:i.inicio||"", fin:i.fin||"", titulo:i.titulo||"", lugar:i.lugar||"", detalle:i.detalle||"", tareas:i.tareas||{} })) : [],
+    lectores: Array.isArray(d.lectores) ? d.lectores : [],
+    items: Array.isArray(d.items) ? d.items.map(i => ({ id:i.id||uid(), inicio:i.inicio||"", fin:i.fin||"", titulo:i.titulo||"", lugar:i.lugar||"", detalle:i.detalle||"", guion:i.guion||"", tareas:i.tareas||{} })) : [],
     control:{ ...v.control, ...(d.control||{}) } };
 }
-const ordenados = d => [...d.items].filter(i => i.inicio).sort((a,b) => toMin(a.inicio) - toMin(b.inicio));
+/* El orden del programa es el orden de la lista; si todas tienen hora, se ordena por hora al guardar */
+const ordenados = d => [...d.items];
+const conHoras = items => items.length > 0 && items.every(i => i.inicio);
+const pad2 = n => String(n).padStart(2, "0");
+/* Hora del punto, o su número de orden si el guion no tiene horas */
+const marcaDe = (items, it) => it.inicio ? fmtHora(it.inicio) : "#" + pad2(items.indexOf(it) + 1);
+const esLector = p => !!p && DATA.lectores.includes(p);
 function finDe(items, i){
   const it = items[i];
   if (it.fin) return toMin(it.fin);
@@ -325,7 +341,7 @@ function finDe(items, i){
 /* Calcula Terminó / Ahora / Próximo */
 function calcular(d){
   const items = ordenados(d), reloj = relojEvento(d.evento.zona);
-  const r = { items, reloj, prev:null, cur:null, next:null, fase:"vacio", pausa:false, manual: d.control.modo === "manual" };
+  const r = { items, reloj, prev:null, cur:null, next:null, fase:"vacio", pausa:false, manual: d.control.modo === "manual" || !conHoras(items) };
   if (!items.length) return r;
   if (r.manual){
     const a = d.control.actual;
@@ -355,10 +371,12 @@ function renderCue(el, tag, it, opts = {}){
   el.classList.toggle("empty", !it);
   if (!it){ el.innerHTML = `<div class="tag">${tag}</div><div class="t">—</div><div class="ttl">${esc(opts.vacio || "Nada todavía")}</div>`; return; }
   const p = persona(), t = opts.sinTarea ? "" : tareaDe(it, p);
+  const leer = !opts.sinTarea && esLector(p) && it.guion;
   el.innerHTML = `<div class="tag">${tag}${opts.extra ? " · " + esc(opts.extra) : ""}</div>
-    <div class="t">${fmtHora(it.inicio)}</div><div class="ttl">${esc(it.titulo || "Sin título")}</div>
+    <div class="t">${marcaDe(ordenados(DATA), it)}</div><div class="ttl">${esc(it.titulo || "Sin título")}</div>
     ${it.lugar ? `<div class="meta">${esc(it.lugar)}</div>` : ""}
-    ${t ? `<div class="mine"><b>${esc(p)}:</b> ${esc(t)}</div>` : ""}`;
+    ${t ? `<div class="mine"><b>${esc(p)}:</b> ${esc(t)}</div>` : ""}
+    ${leer ? `<div class="guion-next"><span>Siguiente texto</span>${esc(it.guion)}</div>` : ""}`;
 }
 
 function renderAhora(){
@@ -382,8 +400,10 @@ function renderAhora(){
   else if (r.fase === "antes"){
     titulo = "Aún no comienza";
     const first = it[0];
-    when = `<span>Empieza ${DATA.evento.fecha && !hoyEvento ? fmtFecha(DATA.evento.fecha) + " · " : ""}${fmtHora(first.inicio)}</span>`;
-    if (hoyEvento && !r.manual) when += `<span>faltan ${fmtDur(toMin(first.inicio) - now)}</span>`;
+    if (first.inicio){
+      when = `<span>Empieza ${DATA.evento.fecha && !hoyEvento ? fmtFecha(DATA.evento.fecha) + " · " : ""}${fmtHora(first.inicio)}</span>`;
+      if (hoyEvento && !r.manual) when += `<span>faltan ${fmtDur(toMin(first.inicio) - now)}</span>`;
+    } else when = `<span>Primer punto: ${esc(first.titulo)}</span>`;
   }
   else if (r.fase === "fin"){ titulo = "El programa terminó"; desc = "Gracias por acompañarnos."; }
   else if (r.pausa){
@@ -393,9 +413,10 @@ function renderAhora(){
   else {
     const c = it[r.cur], ini = toMin(c.inicio), fin = finDe(it, r.cur);
     titulo = c.titulo || "Sin título";
-    when = `<span>${fmtHora(c.inicio)} – ${fmtHora(c.fin || (it[r.cur+1] && it[r.cur+1].inicio) || "")}</span>${c.lugar ? `<span>${esc(c.lugar)}</span>` : ""}`;
+    when = (c.inicio ? `<span>${fmtHora(c.inicio)} – ${fmtHora(c.fin || (it[r.cur+1] && it[r.cur+1].inicio) || "")}</span>` : `<span>Punto ${r.cur + 1} de ${it.length}</span>`)
+      + (c.lugar ? `<span>${esc(c.lugar)}</span>` : "");
     desc = c.detalle || "";
-    if (hoyEvento){
+    if (hoyEvento && conHoras(it)){
       const total = Math.max(1, fin - ini), pasado = Math.min(Math.max(now - ini, 0), total * 3);
       const resta = fin - now;
       barra = `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(pasado/total,1)*100)}"><span style="width:${Math.min(pasado/total,1)*100}%"></span></div>
@@ -403,8 +424,16 @@ function renderAhora(){
     }
   }
 
+  // Voz en off: el texto que debe leer
+  if (esLector(p) && r.fase !== "vacio"){
+    let html = `<div class="lbl">Texto a leer · ${esc(p)}</div>`;
+    if (r.fase === "vivo" && !r.pausa && it[r.cur].guion) html += `<div class="guion">${esc(it[r.cur].guion)}</div>`;
+    else if (r.fase === "fin") html += `<div class="txt">Terminaste por hoy.</div>`;
+    else html += `<div class="txt">${r.fase === "antes" ? "Tu primer texto aparece abajo, en Próximo." : "En este punto no hay texto para leer."}</div>`;
+    pendiente = `<div class="task">${html}</div>`;
+  }
   // Lo que le toca a la persona
-  if (p && r.fase !== "vacio"){
+  else if (p && r.fase !== "vacio"){
     const actual = r.cur != null ? tareaDe(it[r.cur], p) : "";
     const desde = r.cur != null ? r.cur + 1 : (r.next != null ? r.next : it.length);
     let prox = null;
@@ -413,8 +442,8 @@ function renderAhora(){
     if (actual) html += `<div class="txt strong">${esc(actual)}</div>`;
     else html += `<div class="txt">${r.fase === "fin" ? "Terminaste por hoy." : "Ahora no te toca nada."}</div>`;
     if (prox != null){
-      const f = toMin(it[prox].inicio) - now, cuando = hoyEvento && !r.manual && f > 0 ? ` · en ${fmtDur(f)}` : "";
-      html += `<div class="nxt">Tu próximo turno: <b>${fmtHora(it[prox].inicio)} · ${esc(it[prox].titulo)}</b>${cuando}<br>${esc(tareaDe(it[prox], p))}</div>`;
+      const f = it[prox].inicio ? toMin(it[prox].inicio) - now : 0, cuando = hoyEvento && !r.manual && f > 0 ? ` · en ${fmtDur(f)}` : "";
+      html += `<div class="nxt">Tu próximo turno: <b>${marcaDe(it, it[prox])} · ${esc(it[prox].titulo)}</b>${cuando}<br>${esc(tareaDe(it[prox], p))}</div>`;
     } else if (r.fase !== "fin" && !actual){
       html += `<div class="nxt">No tienes más tareas en el programa.</div>`;
     }
@@ -499,16 +528,17 @@ function renderPrograma(){
   const lista = $("listaPrograma");
   if (!r.items.length){ lista.innerHTML = `<li style="display:block"><div class="vacio" style="border:0">El programa todavía no tiene actividades.</div></li>`; return; }
   const filas = r.items.map((it, i) => {
-    if (solo && !tareaDe(it, p)) return "";
+    if (solo && !tareaDe(it, p) && !(esLector(p) && it.guion)) return "";
     let cls = "";
     if (r.fase === "fin" || (r.prev != null && i <= r.prev && i !== r.cur)) cls = "past";
     if (i === r.cur) cls = "cur";
     if (r.fase === "vivo" && r.cur == null && r.next != null && i < r.next) cls = "past";
     const tareas = Object.entries(it.tareas || {}).filter(([n,t]) => t && t.trim() && (!solo || n === p));
     const chips = tareas.length ? `<div class="chips">${tareas.map(([n,t]) => `<span class="chip ${n === p ? "me" : ""}"><b>${esc(n)}:</b> ${esc(t)}</span>`).join("")}</div>` : "";
-    return `<li class="${cls}"><div class="t">${fmtHora(it.inicio)}${it.fin ? `<small>a ${fmtHora(it.fin)}</small>` : ""}</div>
+    return `<li class="${cls}"><div class="t">${marcaDe(r.items, it)}${it.fin ? `<small>a ${fmtHora(it.fin)}</small>` : ""}</div>
       <div class="body"><div class="ttl">${esc(it.titulo || "Sin título")}${i === r.cur ? `<span class="livepill">Ahora</span>` : ""}</div>
-      ${it.lugar || it.detalle ? `<div class="meta">${esc([it.lugar, it.detalle].filter(Boolean).join(" · "))}</div>` : ""}${chips}</div></li>`;
+      ${it.lugar || it.detalle ? `<div class="meta">${esc([it.lugar, it.detalle].filter(Boolean).join(" · "))}</div>` : ""}${chips}
+      ${it.guion ? `<details class="gtxt" ${esLector(p) ? "open" : ""}><summary>Texto de voz en off</summary><div>${esc(it.guion)}</div></details>` : ""}</div></li>`;
   }).join("");
   lista.innerHTML = filas || `<li style="display:block"><div class="vacio" style="border:0">No tienes tareas asignadas en el programa.</div></li>`;
 }
@@ -623,19 +653,19 @@ function renderEditor(){
       <h3>Personas y equipos</h3>
       <p class="help">Aparecen en el menú «¿Quién eres?». Pueden ser nombres o roles (Sonido, Protocolo…). Quien «Coordina» ve en la pantalla principal el botón «Concluyó» para avanzar el programa.</p>
       <div class="people" id="e-personas">
-        ${d.personas.map((n, i) => `<div class="person"><input type="text" id="per-${i}" data-per="${i}" data-old="${esc(n)}" value="${esc(n)}" aria-label="Persona ${i+1}"><div class="row"><label class="switch"><input type="checkbox" id="coord-${i}" data-coord="${i}" ${d.coordinadores.includes(n) ? "checked" : ""}> Coordina</label><button class="iconbtn" type="button" data-delper="${i}" aria-label="Quitar ${esc(n)}">${ICO.x}</button></div></div>`).join("")}
+        ${d.personas.map((n, i) => `<div class="person"><input type="text" id="per-${i}" data-per="${i}" data-old="${esc(n)}" value="${esc(n)}" aria-label="Persona ${i+1}"><div class="row"><label class="switch"><input type="checkbox" id="coord-${i}" data-coord="${i}" ${d.coordinadores.includes(n) ? "checked" : ""}> Coordina</label><label class="switch"><input type="checkbox" id="lect-${i}" data-lect="${i}" ${d.lectores.includes(n) ? "checked" : ""}> Lee texto</label><button class="iconbtn" type="button" data-delper="${i}" aria-label="Quitar ${esc(n)}">${ICO.x}</button></div></div>`).join("")}
       </div>
       <div class="person"><input type="text" id="per-nueva" placeholder="Agregar persona o equipo"><button class="btn" type="button" id="btnAddPer">Agregar</button></div>
     </section>
 
     <section class="panel">
       <h3>Actividades</h3>
-      <p class="help">Se ordenan solas por hora de inicio al guardar. Si no pones hora de fin, dura hasta que empieza la siguiente.</p>
+      <p class="help">Van en el orden de esta lista. Las horas son opcionales: si todas las actividades tienen hora, se ordenan por hora al guardar y el modo Automático sigue el reloj.</p>
       <div class="tasks" id="e-items">
         ${d.items.map((it, i) => `
         <div class="item" data-item="${i}">
           <div class="head">
-            <label class="field"><span>Inicio</span><input type="time" id="it-${it.id}-inicio" data-f="inicio" value="${esc(it.inicio)}"></label>
+            <label class="field"><span>Inicio (opcional)</span><input type="time" id="it-${it.id}-inicio" data-f="inicio" value="${esc(it.inicio)}"></label>
             <label class="field"><span>Fin (opcional)</span><input type="time" id="it-${it.id}-fin" data-f="fin" value="${esc(it.fin)}"></label>
           </div>
           <label class="field"><span>Actividad</span><input type="text" id="it-${it.id}-titulo" data-f="titulo" value="${esc(it.titulo)}" placeholder="Ej.: Palabras de bienvenida"></label>
@@ -643,6 +673,7 @@ function renderEditor(){
             <label class="field"><span>Lugar</span><input type="text" id="it-${it.id}-lugar" data-f="lugar" value="${esc(it.lugar)}"></label>
             <label class="field"><span>Detalle</span><input type="text" id="it-${it.id}-detalle" data-f="detalle" value="${esc(it.detalle)}"></label>
           </div>
+          <label class="field"><span>Texto de voz en off</span><textarea id="it-${it.id}-guion" data-f="guion" rows="4">${esc(it.guion)}</textarea></label>
           <div class="field"><span>Quién hace qué</span>
             <div class="tasks">
               ${Object.entries(it.tareas || {}).map(([n, t], k) => `
@@ -681,14 +712,14 @@ function renderEditor(){
 /* Control en vivo: modo auto/manual, anterior/siguiente */
 function renderControl(){
   const el = $("panelControl"); if (!el || !DATA) return;
-  const r = calcular(DATA), manual = DATA.control.modo === "manual";
+  const r = calcular(DATA), manual = r.manual;
   let ahora = "—";
   if (r.fase === "antes") ahora = "Aún no comienza"; else if (r.fase === "fin") ahora = "Programa terminado";
-  else if (r.pausa) ahora = "Pausa"; else if (r.cur != null) ahora = `${fmtHora(r.items[r.cur].inicio)} · ${r.items[r.cur].titulo}`;
+  else if (r.pausa) ahora = "Pausa"; else if (r.cur != null) ahora = `${marcaDe(r.items, r.items[r.cur])} · ${r.items[r.cur].titulo}`;
   el.innerHTML = `<h3>Control en vivo</h3>
     <p class="help">Automático sigue el reloj. Manual te deja marcar a mano qué está pasando, útil si el programa se atrasa. Se aplica al instante para todos.</p>
     <div class="seg" role="group" aria-label="Modo">
-      <button type="button" data-modo="auto" aria-pressed="${!manual}">Automático</button>
+      <button type="button" data-modo="auto" aria-pressed="${!manual}" ${conHoras(r.items) ? "" : "disabled title=\"Necesita hora en todas las actividades\""}>Automático</button>
       <button type="button" data-modo="manual" aria-pressed="${manual}">Manual</button>
     </div>
     <div class="ctlnow"><small>Ahora para todos</small>${esc(ahora)}</div>
@@ -724,7 +755,7 @@ function leerFormulario(){
   d.evento.zona = $("e-zona").value;
   document.querySelectorAll("#e-items .item").forEach(box => {
     const it = d.items[+box.dataset.item];
-    box.querySelectorAll("[data-f]").forEach(inp => it[inp.dataset.f] = inp.value.trim());
+    box.querySelectorAll("[data-f]").forEach(inp => it[inp.dataset.f] = inp.dataset.f === "guion" ? inp.value.replace(/\s+$/, "") : inp.value.trim());
     const tareas = {};
     box.querySelectorAll(".taskrow").forEach(row => {
       const s = row.querySelector("[data-tp]"), t = row.querySelector("[data-tt]");
@@ -738,6 +769,11 @@ $("editor").addEventListener("input", e => {
   marcar();
 });
 $("editor").addEventListener("change", e => {
+  if (e.target.dataset.lect != null){
+    const n = draft.personas[+e.target.dataset.lect];
+    draft.lectores = e.target.checked ? [...new Set([...draft.lectores, n])] : draft.lectores.filter(c => c !== n);
+    return;
+  }
   if (e.target.dataset.coord != null){
     const n = draft.personas[+e.target.dataset.coord];
     draft.coordinadores = e.target.checked ? [...new Set([...draft.coordinadores, n])] : draft.coordinadores.filter(c => c !== n);
@@ -749,6 +785,7 @@ $("editor").addEventListener("change", e => {
     if (nuevo && nuevo !== viejo && !draft.personas.includes(nuevo)){
       draft.personas[+e.target.dataset.per] = nuevo;
       draft.coordinadores = draft.coordinadores.map(c => c === viejo ? nuevo : c);
+      draft.lectores = draft.lectores.map(c => c === viejo ? nuevo : c);
       draft.items.forEach(it => { if (viejo in it.tareas){ it.tareas[nuevo] = it.tareas[viejo]; delete it.tareas[viejo]; } });
     }
     renderEditor(); marcar();
@@ -782,7 +819,7 @@ $("editor").addEventListener("click", async e => {
   }
   if (b.dataset.delper != null){
     const n = draft.personas[+b.dataset.delper];
-    draft.personas.splice(+b.dataset.delper, 1); draft.coordinadores = draft.coordinadores.filter(c => c !== n); draft.items.forEach(it => delete it.tareas[n]); renderEditor(); return marcar();
+    draft.personas.splice(+b.dataset.delper, 1); draft.coordinadores = draft.coordinadores.filter(c => c !== n); draft.lectores = draft.lectores.filter(c => c !== n); draft.items.forEach(it => delete it.tareas[n]); renderEditor(); return marcar();
   }
   if (b.id === "btnAddItem"){
     const ult = ordenados(draft).at(-1);
@@ -808,11 +845,11 @@ $("editor").addEventListener("click", async e => {
 
 async function guardar(b){
   leerFormulario();
-  const sinHora = draft.items.filter(i => i.titulo && !i.inicio);
-  if (sinHora.length){ $("savebar").querySelector(".msg").textContent = `Falta la hora de inicio en «${sinHora[0].titulo}».`; return; }
-  draft.items = draft.items.filter(i => i.inicio || i.titulo).sort((a,b) => toMin(a.inicio) - toMin(b.inicio));
+  draft.items = draft.items.filter(i => i.inicio || i.titulo);
+  if (conHoras(draft.items)) draft.items.sort((a,b) => toMin(a.inicio) - toMin(b.inicio));
   draft.personas = [...new Set(draft.personas.map(s => s.trim()).filter(Boolean))];
   draft.coordinadores = draft.coordinadores.filter(c => draft.personas.includes(c));
+  draft.lectores = draft.lectores.filter(c => draft.personas.includes(c));
   const payload = { ...draft, control: DATA.control };
   b.disabled = true; b.textContent = "Guardando…";
   const { error } = await api("guardar", { clave, data: payload });
