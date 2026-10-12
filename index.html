@@ -250,6 +250,17 @@ ol.prog li.cur::before{content:"";position:absolute;left:0;top:0;bottom:0;width:
 const SB_URL = "https://nttjbbguvdawcsqmrmvs.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50dGpiYmd1dmRhd2NzcW1ybXZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NzY4NTgsImV4cCI6MjEwNDU1Mjg1OH0.ckx7hr8YT4iPymymehsj30ACrceB5jGUT-czPW-Zkns";
 const sb = supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
+const API = SB_URL + "/functions/v1/evento";
+const H = { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY };
+/* Lectura y escritura pasan por la función «evento»; la contraseña se comprueba en el servidor */
+async function api(accion, body){
+  try {
+    const r = await fetch(API, { method:"POST", headers:{ ...H, "Content-Type":"application/json" }, body: JSON.stringify({ accion, ...body }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return { data:null, error:{ message: j.error || "http_" + r.status } };
+    return { data: "ok" in j ? j.ok : j, error:null };
+  } catch (e) { return { data:null, error:{ message:"red" } }; }
+}
 
 /* ---------- utilidades ---------- */
 const $ = id => document.getElementById(id);
@@ -455,7 +466,7 @@ async function pasoCoord(ctrl){
   const err = $("errCoord");
   if (!clave){ pidePin = { ctrl }; renderAhora(); return; }
   const btns = $("ctlAhora").querySelectorAll("button"); btns.forEach(b => b.disabled = true);
-  const { error } = await sb.rpc("evento_control", { p_clave: clave, p_control: ctrl });
+  const { error } = await api("control", { clave, control: ctrl });
   btns.forEach(b => b.disabled = false);
   if (error){
     if (/clave_incorrecta/.test(error.message)){ clave = null; store.del("evento_clave"); pidePin = { ctrl }; renderAhora(); $("errCoord").textContent = "La contraseña no es correcta o cambió."; return; }
@@ -471,7 +482,7 @@ $("ctlAhora").addEventListener("click", e => {
 $("ctlAhora").addEventListener("submit", async e => {
   e.preventDefault();
   const c = $("pinCoord").value; if (!c) return;
-  const { data, error } = await sb.rpc("evento_verificar", { p_clave: c });
+  const { data, error } = await api("verificar", { clave: c });
   if (error){ $("errCoord").textContent = "No se pudo comprobar. Revisa tu conexión."; return; }
   if (!data){ $("errCoord").textContent = "Contraseña incorrecta."; return; }
   clave = c; store.set("evento_clave", c);
@@ -525,7 +536,7 @@ function renderTodo(){ renderHeader(); renderAhora(); renderPrograma(); if (clav
 function estado(ok, txt){ const e = $("estado"); e.classList.toggle("ok", ok === true); e.classList.toggle("err", ok === false); $("estadoTxt").textContent = txt; }
 function aplicar(row){
   if (!row) return;
-  if (ACTUALIZADO && row.actualizado && row.actualizado <= ACTUALIZADO && DATA) return;
+  if (ACTUALIZADO && row.actualizado && new Date(row.actualizado) < new Date(ACTUALIZADO) && DATA) return;
   ACTUALIZADO = row.actualizado;
   DATA = normalizar(row.data);
   if (dirty) remotoPendiente = true;
@@ -536,8 +547,9 @@ function aplicar(row){
   estado(true, "En vivo · actualizado " + t.toLocaleTimeString("es-DO", { hour:"numeric", minute:"2-digit" }));
 }
 async function cargar(){
-  const { data, error } = await sb.from("evento_programa").select("data, actualizado").eq("id", 1).maybeSingle();
-  if (error){ estado(false, "Sin conexión. Reintentando…"); return; }
+  let data;
+  try { const r = await fetch(API, { headers: H, cache:"no-store" }); if (!r.ok) throw 0; data = await r.json(); }
+  catch { estado(false, "Sin conexión. Reintentando…"); return; }
   if (!data){ DATA = vacio(); renderTodo(); estado(true, "En vivo"); return; }
   aplicar(data);
 }
@@ -564,7 +576,7 @@ $("formClave").addEventListener("submit", async e => {
   e.preventDefault();
   const c = $("clave").value; if (!c) return;
   $("btnEntrar").disabled = true; $("errClave").textContent = "";
-  const { data, error } = await sb.rpc("evento_verificar", { p_clave: c });
+  const { data, error } = await api("verificar", { clave: c });
   $("btnEntrar").disabled = false;
   if (error){ $("errClave").textContent = "No se pudo comprobar. Revisa tu conexión e intenta otra vez."; return; }
   if (!data){ $("errClave").textContent = "Contraseña incorrecta."; return; }
@@ -683,7 +695,7 @@ function renderControl(){
 }
 async function enviarControl(ctrl){
   $("errControl") && ($("errControl").textContent = "");
-  const { error } = await sb.rpc("evento_control", { p_clave: clave, p_control: ctrl });
+  const { error } = await api("control", { clave, control: ctrl });
   if (error){
     if (/clave_incorrecta/.test(error.message)){ salir(); $("errClave").textContent = "La contraseña cambió. Vuelve a entrar."; return; }
     $("errControl").textContent = "No se pudo aplicar. Revisa tu conexión."; return;
@@ -801,7 +813,7 @@ async function guardar(b){
   draft.coordinadores = draft.coordinadores.filter(c => draft.personas.includes(c));
   const payload = { ...draft, control: DATA.control };
   b.disabled = true; b.textContent = "Guardando…";
-  const { error } = await sb.rpc("evento_guardar", { p_clave: clave, p_data: payload });
+  const { error } = await api("guardar", { clave, data: payload });
   if (error){
     b.disabled = false; b.textContent = "Guardar y publicar";
     if (/clave_incorrecta/.test(error.message)){ salir(); $("errClave").textContent = "La contraseña cambió. Vuelve a entrar."; return; }
@@ -814,7 +826,7 @@ async function cambiarClave(b){
   const n = $("e-clave-nueva").value, err = $("errClaveNueva");
   if (n.length < 6){ err.textContent = "La contraseña debe tener al menos 6 caracteres."; return; }
   b.disabled = true;
-  const { error } = await sb.rpc("evento_cambiar_clave", { p_clave: clave, p_nueva: n });
+  const { error } = await api("clave", { clave, nueva: n });
   b.disabled = false;
   if (error){ err.textContent = "No se pudo cambiar. Intenta otra vez."; return; }
   clave = n; store.set("evento_clave", n); $("e-clave-nueva").value = "";
