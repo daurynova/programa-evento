@@ -37,7 +37,7 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:16px/1.45 var(--f-body);-webkit-font-smoothing:antialiased;
+body{background:var(--bg);color:var(--ink);font:1rem/1.45 var(--f-body);-webkit-font-smoothing:antialiased;
   padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 button,input,select,textarea{font:inherit;color:inherit}
 [hidden]{display:none!important}
@@ -52,13 +52,17 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1p
 .brand{flex:1 1 220px;min-width:0}
 .brand h1{margin:0;font:700 1.15rem/1.15 var(--f-display);font-stretch:85%;letter-spacing:.01em;text-wrap:balance}
 .brand .sub{font:500 .78rem/1.3 var(--f-mono);color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
-.who{display:flex;flex-direction:column;gap:3px;flex:1 1 200px;max-width:280px}
+.who{display:flex;flex-direction:column;gap:3px;flex:1 1 240px;max-width:360px}
 .who label{font:600 .68rem/1 var(--f-body);text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
 select,input[type=text],input[type=time],input[type=date],input[type=password],textarea{
   background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
 textarea{resize:vertical;min-height:44px}
 select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
   background-position:calc(100% - 18px) 55%,calc(100% - 13px) 55%;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
+
+/* Tablet y laptop: letra más grande y columna más ancha */
+@media (min-width:760px){ html{font-size:17.5px} .wrap{max-width:860px} .now{padding:26px 26px 24px} .cue{padding:16px 20px} }
+@media (min-width:1200px){ html{font-size:19px} .wrap{max-width:960px} }
 
 /* Barra de pestañas inferior */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);
@@ -415,7 +419,7 @@ function renderAhora(){
     titulo = c.titulo || "Sin título";
     when = (c.inicio ? `<span>${fmtHora(c.inicio)} – ${fmtHora(c.fin || (it[r.cur+1] && it[r.cur+1].inicio) || "")}</span>` : `<span>Punto ${r.cur + 1} de ${it.length}</span>`)
       + (c.lugar ? `<span>${esc(c.lugar)}</span>` : "");
-    desc = c.detalle || "";
+    desc = esLector(p) ? "" : (c.detalle || "");   // quien lee solo necesita su texto
     if (hoyEvento && conHoras(it)){
       const total = Math.max(1, fin - ini), pasado = Math.min(Math.max(now - ini, 0), total * 3);
       const resta = fin - now;
@@ -441,10 +445,12 @@ function renderAhora(){
     let html = `<div class="lbl">Lo tuyo · ${esc(p)}</div>`;
     if (actual) html += `<div class="txt strong">${esc(actual)}</div>`;
     else html += `<div class="txt">${r.fase === "fin" ? "Terminaste por hoy." : "Ahora no te toca nada."}</div>`;
+    const enProximo = prox != null && prox === r.next && r.fase === "vivo";
+    if (enProximo) prox = null;   // ya aparece en «Próximo»
     if (prox != null){
       const f = it[prox].inicio ? toMin(it[prox].inicio) - now : 0, cuando = hoyEvento && !r.manual && f > 0 ? ` · en ${fmtDur(f)}` : "";
       html += `<div class="nxt">Tu próximo turno: <b>${marcaDe(it, it[prox])} · ${esc(it[prox].titulo)}</b>${cuando}<br>${esc(tareaDe(it[prox], p))}</div>`;
-    } else if (r.fase !== "fin" && !actual){
+    } else if (r.fase !== "fin" && !actual && !enProximo){
       html += `<div class="nxt">No tienes más tareas en el programa.</div>`;
     }
     pendiente = `<div class="task">${html}</div>`;
